@@ -577,6 +577,22 @@ arch_write_linkage_table_entry(int index, void *target_addr, int datap)
     }
 }
 
+void
+*arch_read_linkage_table_entry(int index, int datap)
+{
+  /* Mirror arch_write_linkage_table_entry's grouped layout: the real target
+     address is stored in the data (indirection) word of the entry, for both
+     data and code symbols.  The code trampoline slot only holds a JMP/NOP. */
+  const unsigned int entries_per_group = 16;
+  unsigned int major_index = (unsigned int)index / entries_per_group;
+  unsigned int minor_index = (unsigned int)index % entries_per_group;
+  char* group_base = (major_index * entries_per_group * ALIEN_LINKAGE_TABLE_ENTRY_SIZE)
+                     + (char*)ALIEN_LINKAGE_SPACE_START;
+  char* data = group_base + minor_index*8;
+  (void)datap;
+  return (void*) *(uword_t *)data;
+}
+
 /* These setup and check *both* the sse2 and x87 FPUs. While lisp code
    only uses the sse2 FPU, other code (such as libc) may use the x87 FPU.
  */
