@@ -15,6 +15,9 @@
   (index int) (real-address unsigned) (datap int))
 (define-alien-variable undefined-alien-address unsigned)
 
+(define-alien-routine arch-read-linkage-table-entry (* t)
+  (index int) (datap int))
+
 (define-load-time-global *linkage-info*
     ;; CDR of the cons is the list of undefineds
     (list (make-hash-table :test 'equal :synchronized t)))
@@ -101,6 +104,31 @@
             (recheck key (the (not null) (gethash key ht)))))
       (setf (cdr info) notdef)))))
 )
+
+(defun linkage-table-index (name datap)
+  "Returns the index of the foreign symbol in the linkage table or NIL if it is
+not present."
+  (let* ((key (if datap (list name) name))
+         (info *linkage-info*)
+         (ht (car info)))
+    (with-system-mutex ((hash-table-lock ht))
+      (gethash key ht))))
+
+(defun linkage-table-address (name datap)
+  "Returns the address of the foreign symbol's entry in the linkage table or NIL
+if it is not present."
+  (awhen (linkage-table-index name datap)
+    (sb-vm::alien-linkage-table-entry-address it)))
+
+(defun find-linkage-table-foreign-symbol-address (name)
+  "Returns the address of the foreign symbol NAME, or NIL. Consults only the
+linkage table to find the address."
+  (multiple-value-bind (index datap)
+      (or (linkage-table-index name nil)
+          (values (linkage-table-index name t) t))
+    (when (and index
+               (not (member (if datap (list name) name) (cdr *linkage-info*) :test #'equal)))
+      (sap-int (alien-sap (arch-read-linkage-table-entry index (if datap 1 0)))))))
 
 (defun find-foreign-symbol-address (name)
   "Returns the address of the foreign symbol NAME, or NIL. Does not enter the

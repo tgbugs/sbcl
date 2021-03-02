@@ -499,6 +499,14 @@ arch_write_linkage_table_entry(int index, void *target_addr, int datap)
     *(unsigned int *)reloc_addr = (unsigned int)target_addr;
 }
 
+void
+*arch_read_linkage_table_entry(int index, int datap)
+{
+    char *reloc_addr =
+        (char*)ALIEN_LINKAGE_TABLE_SPACE_END - (index + 1) * ALIEN_LINKAGE_TABLE_ENTRY_SIZE;
+    return *(unsigned int *)reloc_addr;
+}
+
 void gcbarrier_patch_code(void* where, int nbits)
 {
     // Replicate FIXUP-CODE-OBJECT for fixup kind :SLL-SA.
