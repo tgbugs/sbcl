@@ -512,4 +512,11 @@ void gcbarrier_patch_code(void* where, int nbits)
     unsigned preserve_bits = ~(0x1f << 6);
     pc[0] = (inst & preserve_bits) | (left_shift << 6);
     pc[1] = (next & preserve_bits) | (right_shift << 6);
+void
+
+*arch_read_linkage_table_entry(int index, int datap)
+{
+    char *reloc_addr =
+        (char*)LINKAGE_TABLE_SPACE_END - (index + 1) * LINKAGE_TABLE_ENTRY_SIZE;
+    return *(unsigned int *)reloc_addr;
 }
