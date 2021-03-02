@@ -350,6 +350,17 @@ void arch_write_linkage_table_entry(int index, void *target_addr, int datap)
   THREAD_JIT_WP(1);
 }
 
+void
+*arch_read_linkage_table_entry(int index, int datap)
+{
+  char *reloc_addr = (char*)ALIEN_LINKAGE_SPACE_START + index * ALIEN_LINKAGE_TABLE_ENTRY_SIZE;
+  if (datap) {
+    return (unsigned long*) *(unsigned long *)reloc_addr;
+  }
+
+  return *(void**)((int*)reloc_addr+2);
+}
+
 void gcbarrier_patch_code(void* where, int nbits)
 {
     // Patch in the 'imms' value for UBFM
