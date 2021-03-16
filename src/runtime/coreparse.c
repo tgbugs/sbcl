@@ -747,25 +747,7 @@ process_directory(int count, struct ndir_entry *entry,
                (uword_t)&lisp_code_start, (uword_t)&lisp_code_end,
                text_space_highwatermark);
 #endif
-        ALIEN_LINKAGE_TABLE_SPACE_START =
-            (uword_t)os_alloc_gc_space(ALIEN_LINKAGE_TABLE_CORE_SPACE_ID, 0, 0,
-                                       ALIEN_LINKAGE_TABLE_SPACE_SIZE);
-        // Prefill the alien linkage table so that shrinkwrapped executables which link in
-        // all their C library dependencies can avoid linking with -ldl
-        // but extern-alien still works for newly compiled code.
-        lispobj* ptr = &alien_linkage_values;
-        gc_assert(ptr);
-        int entry_index = 0;
-        int count;
-        extern int alien_linkage_table_n_prelinked;
-        count = alien_linkage_table_n_prelinked = *ptr++;
-        for ( ; count-- ; entry_index++ ) {
-            boolean datap = *ptr == (lispobj)-1; // -1 can't be a function address
-            if (datap)
-                ++ptr;
-            arch_write_linkage_table_entry(entry_index, (void*)*ptr++, datap);
-        }
-
+        os_link_from_pointer_table(&lisp_linkage_values);
         // unprotect the pages
         os_protect((void*)TEXT_SPACE_START, text_space_size, OS_VM_PROT_ALL);
     } else

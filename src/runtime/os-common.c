@@ -17,6 +17,7 @@
 #include "sbcl.h"
 #include "globals.h"
 #include "runtime.h"
+#include "gc-assert.h"
 #include "genesis/config.h"
 #include "genesis/constants.h"
 #include "genesis/cons.h"
@@ -162,6 +163,27 @@ os_sem_destroy(os_sem_t *sem)
  * references to runtime foreign symbols that used to be static, adding linkage
  * table entry for each element of REQUIRED_FOREIGN_SYMBOLS.
  */
+
+void os_link_from_pointer_table(lispobj* table_ptr)
+{
+    ALIEN_LINKAGE_TABLE_SPACE_START =
+        (uword_t)os_alloc_gc_space(ALIEN_LINKAGE_TABLE_CORE_SPACE_ID, 0, 0,
+                                   ALIEN_LINKAGE_TABLE_SPACE_SIZE);
+    // Prefill the alien linkage table so that shrinkwrapped executables which link in
+    // all their C library dependencies can avoid linking with -ldl
+    // but extern-alien still works for newly compiled code.
+    gc_assert(table_ptr);
+    int entry_index = 0;
+    int count;
+    extern int alien_linkage_table_n_prelinked;
+    count = alien_linkage_table_n_prelinked = *table_ptr++;
+    for ( ; count-- ; entry_index++ ) {
+        boolean datap = *table_ptr == (lispobj)-1; // -1 can't be a function address
+        if (datap)
+            ++table_ptr;
+        arch_write_linkage_table_entry(entry_index, (void*)*table_ptr++, datap);
+    }
+}
 
 #ifndef LISP_FEATURE_WIN32
 void *
