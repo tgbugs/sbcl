@@ -32,3 +32,14 @@ export LANG LC_ALL
 # environment.
 echo //building cross-compiler, and doing first genesis
 echo '(load "loader.lisp") (load-sbcl-file "make-host-1.lisp")' | $SBCL_XC_HOST
+
+# Use a little C program to grab stuff from the C header files and
+# smash it into Lisp source code.
+$GNUMAKE -C src/runtime clean
+$GNUMAKE -C src/runtime sbcl.h
+$GNUMAKE -C tools-for-build -I../src/runtime grovel-headers
+tools-for-build/grovel-headers > output/stuff-groveled-from-headers.lisp
+
+if [ -n "$SBCL_HOST_LOCATION" ]; then
+    rsync -a output/stuff-groveled-from-headers.lisp "$SBCL_HOST_LOCATION/output"
+fi
