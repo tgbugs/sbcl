@@ -166,7 +166,7 @@ os_sem_destroy(os_sem_t *sem)
  * table entry for each element of REQUIRED_FOREIGN_SYMBOLS.
  */
 
-#ifndef LISP_FEATURE_WIN32
+#if !defined(LISP_FEATURE_WIN32) && defined(LISP_FEATURE_OS_PROVIDES_DLOPEN)
 void *
 os_dlsym_default(char *name)
 {
