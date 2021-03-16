@@ -147,12 +147,14 @@ shrinkwrap-sbcl.s shrinkwrap-sbcl-core.o: $(SHRINKWRAP_DEPS)
 pie-shrinkwrap-sbcl.s pie-shrinkwrap-sbcl-core.o: $(SHRINKWRAP_DEPS)
 	../../run-sbcl.sh --script ../../tools-for-build/elftool.lisp split --pie \
 		../../output/sbcl.core pie-shrinkwrap-sbcl.s
-# "Commas ... cannot appear in the text of an argument as written"
 # There can not be any space after the comma on the next line,
 # or else it becomes part of the expansion of $(comma)
 comma := ,
 shrinkwrap-sbcl: shrinkwrap-sbcl.s shrinkwrap-sbcl-core.o $(LIBSBCL)
 	$(CC) -no-pie $(filter-out -Wl$(comma)--export-dynamic, $(LINKFLAGS)) \
+ $(CFLAGS) -o $@ $^ $(filter-out -ldl, $(LIBS))
+static-shrinkwrap-sbcl: shrinkwrap-sbcl.s shrinkwrap-sbcl-core.o $(LIBSBCL)
+	$(CC) -no-pie -static $(filter-out -Wl$(comma)--export-dynamic, $(LINKFLAGS)) \
  $(CFLAGS) -o $@ $^ $(filter-out -ldl, $(LIBS))
 pie-shrinkwrap-sbcl: pie-shrinkwrap-sbcl.s pie-shrinkwrap-sbcl-core.o $(PIC_OBJS)
 	$(CC) -pie -o $@ $^ $(LIBS)
