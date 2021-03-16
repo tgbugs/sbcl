@@ -83,6 +83,10 @@ ifndef LISP_FEATURE_WIN32
 COMMON_SRC += run-program.c sprof.c
 endif
 
+ifdef LISP_FEATURE_SB_PRELINK_LINKAGE_TABLE
+COMMON_SRC += linkage-table-prelink-info.c
+endif
+
 C_SRC = $(COMMON_SRC) ${ARCH_SRC} ${OS_SRC} ${GC_SRC}
 
 SRCS = $(C_SRC) ${ASSEM_SRC}
@@ -94,7 +98,11 @@ LIBS = ${OS_LIBS} $(LDLIBS) -lm
 ifdef LISP_FEATURE_SB_SAFEPOINT
 LDB_TARGET =
 else
+ifdef LISP_FEATURE_SB_PRELINK_LINKAGE_TABLE
+LDB_TARGET =
+else
 LDB_TARGET = ldb
+endif
 endif
 
 targets: $(TARGET) $(OBJTARGET) $(LDB_TARGET) sbcl.mk
@@ -127,6 +135,9 @@ unit-tests: gc-unit-tests.o libsbcl.a
 # On mingw64, it leads to an executable that cannot be executed.
 sbcl.o: $(OBJS)
 	$(LD) $(__LDFLAGS__) -r -o $@ $^
+
+linkage-table-prelink-info.o: linkage-table-prelink-info.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Wno-builtin-declaration-mismatch  -c -o $@ $<
 
 libsbcl.a: $(OBJS)
 	rm -f $@ ; ar rcs $@ $^
