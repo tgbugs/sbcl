@@ -39,20 +39,6 @@ echo //building runtime system and symbol table file
 $GNUMAKE -C src/runtime clean
 $GNUMAKE $SBCL_MAKE_JOBS -C src/runtime all
 
-# Use a little C program to grab stuff from the C header files and
-# smash it into Lisp source code.
-# -C tools-for-build is broken on some gnu make versions.
-if $android
-then
-    ( cd tools-for-build; $CC -I../src/runtime -ldl -o grovel-headers grovel-headers.c)
-    . ./tools-for-build/android_run.sh
-    android_run tools-for-build/grovel-headers > output/stuff-groveled-from-headers.lisp
-else
-    ( cd tools-for-build; $GNUMAKE -I../src/runtime grovel-headers )
-    tools-for-build/grovel-headers > output/stuff-groveled-from-headers.lisp
-fi
-touch -r tools-for-build/grovel-headers.c output/stuff-groveled-from-headers.lisp
-
 if [ -n "$SBCL_HOST_LOCATION" ]; then
     echo //copying target-1 output files to host
     rsync -a output/stuff-groveled-from-headers.lisp "$SBCL_HOST_LOCATION/output"
