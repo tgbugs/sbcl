@@ -194,12 +194,17 @@ os_dlsym_default(char *name)
 }
 #endif
 
+#ifdef LISP_FEATURE_SB_PRELINK_LINKAGE_TABLE
+extern lispobj lisp_linkage_values;
+#endif
+
 int alien_linkage_table_n_prelinked;
 void os_link_runtime()
 {
     if (alien_linkage_table_n_prelinked)
         return; // Linkage was already performed by coreparse
 
+#ifndef LISP_FEATURE_SB_PRELINK_LINKAGE_TABLE
     struct vector* symbols = VECTOR(SymbolValue(REQUIRED_FOREIGN_SYMBOLS,0));
     alien_linkage_table_n_prelinked = vector_len(symbols);
     int j;
@@ -217,6 +222,9 @@ void os_link_runtime()
             fprintf(stderr, "Missing required foreign symbol '%s'\n", namechars);
         }
     }
+#else
+    os_link_from_pointer_table(&lisp_linkage_values);
+#endif
 }
 
 void os_unlink_runtime()

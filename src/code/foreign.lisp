@@ -150,6 +150,7 @@ symbol designates a variable. May enter the symbol into the linkage-table."
         (int-sap addr))))
 
 (defun foreign-reinit ()
+  (fixup-prelinked-linkage-table-entries)
   #+os-provides-dlopen (reopen-shared-objects)
   (update-alien-linkage-table t))
 
