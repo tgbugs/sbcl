@@ -146,6 +146,9 @@ comma := ,
 shrinkwrap-sbcl: shrinkwrap-sbcl.s shrinkwrap-sbcl-core.o $(LIBSBCL)
 	$(CC) -no-pie $(filter-out -Wl$(comma)--export-dynamic, $(LINKFLAGS)) \
  $(CFLAGS) -o $@ $^ $(LIBS)
+static-shrinkwrap-sbcl: shrinkwrap-sbcl.s shrinkwrap-sbcl-core.o $(LIBSBCL)
+	$(CC) -no-pie -static $(filter-out -Wl$(comma)--export-dynamic, $(LINKFLAGS)) \
+ $(CFLAGS) -o $@ $^ $(LIBS)
 pie-shrinkwrap-sbcl: pie-shrinkwrap-sbcl.s pie-shrinkwrap-sbcl-core.o $(PIC_OBJS)
 	$(CC) -pie -o $@ $^ $(LIBS)
 semiwrap-sbcl: shrinkwrap-sbcl.s $(LIBSBCL)
