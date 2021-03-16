@@ -201,6 +201,7 @@ void os_link_runtime(lispobj vector, lispobj count)
             arch_write_linkage_table_entry(linkage_index, (void*)*table, is_data);
         }
     } else { // Process only 'count' entries by looking them up
+#ifndef LISP_FEATURE_SB_PRELINK_LINKAGE_TABLE
         int n = alien_linkage_table_n_prelinked = count;
         for ( ; n-- ; linkage_index++, name_index += 2 ) {
             lispobj item = name_table->data[name_index];
@@ -214,6 +215,7 @@ void os_link_runtime(lispobj vector, lispobj count)
                 fprintf(stderr, "Missing required foreign symbol '%s'\n", namechars);
             }
         }
+#endif
     }
 }
 
