@@ -2433,6 +2433,47 @@ Legal values for OFFSET are -4, -8, -12, ..."
       ;; C runtime reads the core header entry but cold-init reads the lisp symbol
       (cold-set (cold-intern 'sb-sys:*linkage-info*) (cold-cons *nil-descriptor* v))
       v)))
+
+#+sb-prelink-linkage-table
+(defun foreign-symbols-to-c (output-pathname)
+  (with-open-file (output output-pathname
+                          :direction :output
+                          :if-exists :supersede)
+    (let ((sorted-pairs (sort (%hash-table-alist *cold-foreign-symbol-table*) #'< :key #'cdr)))
+      ;; Needed for uintptr_t. We use the raw uintptr_t as we don't want to have
+      ;; to include any SBCL headers just to get at lispobj.
+      (format output "#include <stdint.h>~%~%")
+
+      ;; Write out the extern definitions. Everything is a void function (even
+      ;; variables) because compilers don't like void variables. Remove
+      ;; alien_linkage_values as we need to write to it, so we should use the
+      ;; actual type.
+      (format output "extern void ~{~A()~^, ~};~%~%"
+              (remove "alien_linkage_values"
+                      (mapcar (lambda (x)
+                                (if (listp (car x))
+                                    (caar x)
+                                    (car x)))
+                              sorted-pairs)
+                      :test #'equal))
+
+      #-win32
+      (format output "uintptr_t __attribute__((weak)) alien_linkage_values[] = {~%")
+      #+win32
+      (format output "uintptr_t alien_linkage_values[] = {~%")
+
+      ;; One address per linkage-table entry, in linkage-index order, matching the
+      ;; format that os_link_runtime consumes (and that elftool emits for an
+      ;; ELF-embedded core): no leading count and no data/-1 markers.  The count
+      ;; is taken from SB-SYS:*LINKAGE-INFO* and data-vs-code from that same table,
+      ;; so emitting them here only shifted every entry by one -- installing the
+      ;; symbol count as entry 0's address (a fault at a tiny address == the count).
+      (dolist (pair sorted-pairs)
+        (format output "  (uintptr_t)&~A,~%" (if (listp (car pair))
+                                                 (caar pair)
+                                                 (car pair))))
+      (format output "};~%"))))
+
 
 ;;;; general machinery for cold-loading FASL files
 
@@ -4261,11 +4302,16 @@ INDEX   LINK-ADDR       FNAME    FUNCTION  NAME
 ;;;   CORE-FILE-NAME gets a Lisp core.
 ;;;   C-HEADER-DIR-NAME gets the path in which to place generated headers
 ;;;   MAP-FILE-NAME gets the name of the textual 'cold-sbcl.map' file
+;;;   LINKAGE-TABLE-PREFILL-INFO-C-NAME gets a .c file used to store the
+;;;     data used to link the runtime before entering Lisp.
 (defun sb-cold:genesis (&key object-file-names foptrace-file-names tls-init
                              defstruct-descriptions
                              build-id
                              core-file-name c-header-dir-name map-file-name
-                             (verbose t))
+                             (verbose t)
+                             linkage-table-prefill-info-c-name
+                             extra-linkage-table-entries)
+  (declare (ignorable linkage-table-prefill-info-c-name))
 
   (when verbose
     (format t
@@ -4284,6 +4330,9 @@ INDEX   LINK-ADDR       FNAME    FUNCTION  NAME
     ;; Prefill some linkage table entries perhaps
     (loop for (name datap) in sb-vm::*alien-linkage-table-predefined-entries*
           do (alien-linkage-table-note-symbol name datap))
+    (loop for (name datap undefinedp) in extra-linkage-table-entries
+          unless undefinedp
+            do (alien-linkage-table-note-symbol name datap))
 
     ;; Now that we've successfully read our only input file (by
     ;; loading the symbol table, if any), it's a good time to ensure
@@ -4415,6 +4464,9 @@ INDEX   LINK-ADDR       FNAME    FUNCTION  NAME
         (sort-initial-methods)
         (resolve-deferred-known-funs)
         (setq foreign-symbols (foreign-symbols-to-core))
+        #+sb-prelink-linkage-table
+        (when linkage-table-prefill-info-c-name
+          (foreign-symbols-to-c linkage-table-prefill-info-c-name))
         (finish-symbols)
         (finalize-load-time-value-noise))
 
