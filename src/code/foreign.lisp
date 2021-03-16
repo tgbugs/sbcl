@@ -152,7 +152,7 @@ symbol designates a variable. May enter the symbol into the linkage-table."
 (defun foreign-reinit ()
   (fixup-prelinked-linkage-table-entries)
   #+os-provides-dlopen (reopen-shared-objects)
-  (update-alien-linkage-table t))
+  #+os-provides-dlopen (update-alien-linkage-table t))
 
 ;;; Cleanups before saving a core
 (defun foreign-deinit ()

@@ -92,7 +92,14 @@ SRCS = $(C_SRC) ${ASSEM_SRC}
 
 OBJS = $(C_SRC:.c=.o) $(ASSEM_SRC:.S=.o) ../../tlsf-bsd/tlsf/tlsf.o
 
+# "Commas ... cannot appear in the text of an argument as written"
+comma := ,
+
+ifeq ($(or $(LISP_FEATURE_OS_PROVIDES_DLOPEN),$(LISP_FEATURE_OS_PROVIDES_DLADDR)),1)
 LIBS = ${OS_LIBS} $(LDLIBS) -lm
+else
+LIBS = $(filter-out -ldl,$(filter-out -Wl$(comma)-no-as-needed,$(OS_LIBS))) $(LDLIBS) -lm
+endif
 
 targets: $(TARGET) $(OBJTARGET) sbcl.mk
 
