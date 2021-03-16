@@ -23,6 +23,7 @@
     (list (make-hash-table :test 'equal :synchronized t)))
 (declaim (type (cons hash-table) *linkage-info*))
 
+#+os-provides-dlopen
 (macrolet ((dlsym-wrapper (&optional warn)
              ;; Produce two values: an indicator of whether the foreign symbol was
              ;; found; and the address as an integer if found, or a guard address
@@ -208,7 +209,7 @@ symbol designates a variable. May enter the symbol into the linkage-table."
 (defun foreign-reinit ()
   (fixup-prelinked-linkage-table-entries)
   #+os-provides-dlopen (reopen-shared-objects)
-  (update-alien-linkage-table t))
+  #+os-provides-dlopen (update-alien-linkage-table t))
 
 ;;; Cleanups before saving a core
 (defun foreign-deinit ()
