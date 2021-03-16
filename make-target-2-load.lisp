@@ -39,6 +39,10 @@
           ;; than subtractive ones. So you opt out, not in, to having *LOAD-TRUENAME*
           ;; eagerly bound.
           :ANSI-COMPLIANT-LOAD-TRUENAME
+          ;; Used by genesis and C. Genesis uses presence of this feature to
+          ;; determine if a C file should be written to contain the linkage
+          ;; info.
+          :SB-PRELINK-LINKAGE-TABLE
           ;; The final batch of symbols is strictly for C. The LISP_FEATURE_
           ;; prefix on the corresponding #define is unfortunate.
           :GCC-TLS :USE-SYS-MMAP
