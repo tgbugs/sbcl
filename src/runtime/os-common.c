@@ -195,6 +195,7 @@ void os_link_runtime()
         return;
     }
 
+#ifndef LISP_FEATURE_SB_PRELINK_LINKAGE_TABLE
     struct vector* symbols = VECTOR(SymbolValue(REQUIRED_FOREIGN_SYMBOLS,0));
     int n = alien_linkage_table_n_prelinked = vector_len(symbols);
     int index;
@@ -212,6 +213,7 @@ void os_link_runtime()
             fprintf(stderr, "Missing required foreign symbol '%s'\n", namechars);
         }
     }
+#endif
 }
 
 void os_unlink_runtime()
