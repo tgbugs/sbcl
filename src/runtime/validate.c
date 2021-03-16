@@ -125,6 +125,18 @@ bool allocate_hardwired_spaces(bool hard_failp)
     return 1;
 }
 
+void
+allocate_lisp_dynamic_space(bool did_preinit)
+{
+    // Small spaces can be allocated after large spaces are.
+    // The above code is only utilized when heap relocation is disabled.
+    // And when so, failure to allocate dynamic space is fatal.
+    if (!did_preinit)
+      allocate_hardwired_spaces(1);
+
+    ensure_undefined_alien();
+}
+
 static inline void
 protect_guard_page(void *page, int protect_p, os_vm_prot_t flags) {
     os_protect(page, os_vm_page_size, protect_p ?

@@ -403,7 +403,10 @@
           "Relocatable-static-space requires immobile-space")
          ;; There is still hope to make multithreading on DragonFly x86-64
          ("(and sb-thread x86 dragonfly)"
-          ":SB-THREAD not supported on selected architecture")))
+          ":SB-THREAD not supported on selected architecture")
+         ;; We need SOME way to fill the linkage table...
+         ("(and (not os-provides-dlopen) (not sb-prelink-linkage-table))"
+          "Can't disable both os-provides-dlopen and sb-prelink-linkage-table")))
       (failed-test-descriptions nil))
   (dolist (test feature-compatibility-tests)
     (let ((*readtable* *xc-readtable*))
