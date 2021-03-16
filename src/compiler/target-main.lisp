@@ -148,7 +148,7 @@
                       (*compilation*
                        (make-compilation
                         (and (member :msan *features*)
-                         (find-dynamic-foreign-symbol-address "__msan_unpoison"))))
+                         (find-foreign-symbol-address "__msan_unpoison"))))
                       (*gensym-counter* 0)
                       ;; KLUDGE: This rebinding of policy is necessary so that
                       ;; forms such as LOCALLY at the REPL actually extend the
