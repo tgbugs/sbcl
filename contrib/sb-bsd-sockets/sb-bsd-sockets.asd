@@ -9,7 +9,7 @@
   :version "0.59"
   :defsystem-depends-on ("sb-grovel")
   ;; We don't process random toplevel forms
-  :eval (when (sb-alien::find-dynamic-foreign-symbol-address "getaddrinfo")
+  :eval (when (sb-alien::find-foreign-symbol-address "getaddrinfo")
           (pushnew :sb-bsd-sockets-addrinfo *features*))
   :serial t
   :components
