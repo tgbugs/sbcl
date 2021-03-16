@@ -133,7 +133,10 @@ linkage table to find the address."
 (defun find-foreign-symbol-address (name)
   "Returns the address of the foreign symbol NAME, or NIL. Does not enter the
 symbol in the linkage table, and never returns an address in the linkage-table."
-  (find-dynamic-foreign-symbol-address name))
+  (or
+   #+os-provides-dlopen
+   (find-dynamic-foreign-symbol-address name)
+   (find-linkage-table-foreign-symbol-address name)))
 
 ;;; Note that much conditionalization is for nothing at this point, because all
 ;;; platforms that we care about implement dlopen(). But if one did not, only
@@ -159,8 +162,13 @@ Returns a secondary value T for historical reasons.
 The returned address is always a linkage-table address.
 Symbols are entered into the linkage-table if they aren't there already."
   (declare (ignorable datap))
-  (let ((index (ensure-alien-linkage-index name datap)))
-    (values (sb-vm::alien-linkage-table-entry-address index) t)))
+  (values
+   (or (linkage-table-address name datap)
+       #+os-provides-dlopen
+       (let ((index (ensure-alien-linkage-index name datap)))
+         (sb-vm::alien-linkage-table-entry-address index))
+       (error 'undefined-alien-error :name name))
+   t))
 
 (defun foreign-symbol-sap (symbol &optional datap)
   "Returns a SAP corresponding to the foreign symbol. DATAP must be true if the
@@ -242,7 +250,7 @@ symbol designates a variable. May enter the symbol into the linkage-table."
         and reference across (symbol-value 'sb-vm::+required-foreign-symbols+)
         do (setf (gethash reference (car *linkage-info*)) table-offset))
   #+os-provides-dlopen
-  (setf *runtime-dlhandle* (dlopen-or-lose))
+  (setf *runtime-dlhandle* (ignore-errors (dlopen-or-lose)))
   #+os-provides-dlopen
   (setf *shared-objects* nil))
 

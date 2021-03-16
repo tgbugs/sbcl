@@ -142,7 +142,7 @@
                    (make-compilation
                     :msan-unpoison
                     (and (member :msan *features*)
-                         (find-dynamic-foreign-symbol-address "__msan_unpoison"))
+                         (find-foreign-symbol-address "__msan_unpoison"))
                     :block-compile nil))
                   (*last-message-count* (list* 0 nil nil))
                   (*last-error-context* nil)
