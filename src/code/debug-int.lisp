@@ -3833,7 +3833,7 @@ register."
                  #+(or arm64 riscv) fixnum
                  #+(or x86 x86-64) system-area-pointer real-lra))
   (macrolet ((symbol-addr (name)
-               `(find-dynamic-foreign-symbol-address ,name))
+               `(find-foreign-symbol-address ,name))
              (trap-offset ()
                `(- (symbol-addr "fun_end_breakpoint_trap") src-start)))
     ;; These are really code labels, not variables: but this way we get
