@@ -3,7 +3,7 @@
 # libgmp, and libz staticially linked in. It is simple, however it demonstrates
 # that a static executable can run on ~any Linux system.
 
-FROM clfoundation/sbcl:alpine3.13
+FROM clfoundation/sbcl:alpine3.14
 
 COPY . /usr/local/src/sbcl/
 
@@ -21,7 +21,7 @@ RUN set -x \
          *) echo "Unknown arch" >&2; exit 1;; \
        esac \
     && export SBCL_ARCH \
-    && apk add --no-cache ca-certificates curl openssl make gcc musl-dev linux-headers gnupg patch zlib-dev zlib-static \
+    && apk add --no-cache ca-certificates curl openssl make gcc musl-dev linux-headers gnupg patch zlib-dev zlib-static git \
     # Remove the hardcoding of armv5 as target arch. Use the default provided
     # by the base image. Required when building for ARM on Alpine 3.12.
     && sed -i -e "s/CFLAGS += -marm -march=armv5/CFLAGS += -marm/" src/runtime/Config.arm-linux \
