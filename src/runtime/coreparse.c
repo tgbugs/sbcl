@@ -747,7 +747,7 @@ process_directory(int count, struct ndir_entry *entry,
                (uword_t)&lisp_code_start, (uword_t)&lisp_code_end,
                text_space_highwatermark);
 #endif
-        os_link_from_pointer_table(&lisp_linkage_values);
+        os_link_from_pointer_table(&alien_linkage_values);
         // unprotect the pages
         os_protect((void*)TEXT_SPACE_START, text_space_size, OS_VM_PROT_ALL);
     } else

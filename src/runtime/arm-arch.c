@@ -168,7 +168,7 @@ void
 *arch_read_linkage_table_entry(int index, int datap)
 {
   char *reloc_addr =
-      (char *)LINKAGE_TABLE_SPACE_END - (index + 1) * LINKAGE_TABLE_ENTRY_SIZE;
+      (char *)ALIEN_LINKAGE_TABLE_SPACE_END - (index + 1) * ALIEN_LINKAGE_TABLE_ENTRY_SIZE;
   if (datap) {
     return (unsigned long*) *(unsigned long *)reloc_addr;
   }

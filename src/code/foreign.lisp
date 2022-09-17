@@ -251,7 +251,7 @@ symbol designates a variable. May enter the symbol into the linkage-table."
 (defun fixup-prelinked-linkage-table-entries ()
   "Called during reinit. Used to rewrite NULL function references to the
 correct undefined alien function handler."
-  (let* ((n-prelinked (extern-alien "lisp_linkage_table_n_prelinked" int))
+  (let* ((n-prelinked (extern-alien "alien_linkage_table_n_prelinked" int))
          (info *linkage-info*)
          (ht (car info))
          (notdef))
@@ -285,7 +285,7 @@ not present."
   "Returns the address of the foreign symbol's entry in the linkage table or NIL
 if it is not present."
   (awhen (linkage-table-index name datap)
-    (sb-vm::linkage-table-entry-address it)))
+    (sb-vm::alien-linkage-table-index-from-address it)))
 
 (defun find-linkage-table-foreign-symbol-address (name)
   "Returns the address of the foreign symbol NAME, or NIL. Consults only the
