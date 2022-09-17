@@ -15,11 +15,15 @@
   (index int) (real-address unsigned) (datap int))
 (define-alien-variable undefined-alien-address unsigned)
 
+(define-alien-routine arch-read-linkage-table-entry (* t)
+  (index int) (datap int))
+
 (define-load-time-global *linkage-info*
     ;; CDR of the cons is the list of undefineds
     (list (make-hash-table :test 'equal :synchronized t)))
 (declaim (type (cons hash-table) *linkage-info*))
 
+#+os-provides-dlopen
 (macrolet ((dlsym-wrapper (&optional warn)
              ;; Produce two values: an indicator of whether the foreign symbol was
              ;; found; and the address as an integer if found, or a guard address
@@ -240,3 +244,55 @@ symbol designates a variable. May enter the symbol into the linkage-table."
 
 #-os-provides-dlopen
 (define-unsupported-fun load-shared-object)
+
+;; TODO: Is there a way to avoid this? This is needed because on some
+;; platforms, the undefined alien function handler is not available at compile
+;; time (it's an assembly routine created in Lisp).
+(defun fixup-prelinked-linkage-table-entries ()
+  "Called during reinit. Used to rewrite NULL function references to the
+correct undefined alien function handler."
+  (let* ((n-prelinked (extern-alien "lisp_linkage_table_n_prelinked" int))
+         (info *linkage-info*)
+         (ht (car info))
+         (notdef))
+    (with-system-mutex ((hash-table-lock ht))
+      (dohash ((key index) ht)
+        (when (< index n-prelinked)
+          (let* ((datap (listp key))
+                 (sap (alien-sap (arch-read-linkage-table-entry index (if datap 1 0)))))
+            (when (zerop (sap-int sap))
+              (push key notdef)
+              (arch-write-linkage-table-entry index
+                                              (if datap
+                                                  undefined-alien-address
+                                                  (or
+                                                   (sb-fasl:get-asm-routine 'sb-vm::undefined-alien-tramp)
+                                                   (find-foreign-symbol-address "undefined_alien_function")
+                                                   (bug "unreachable")))
+                                              (if datap 1 0)))))))
+    (setf (cdr info) notdef)))
+
+(defun linkage-table-index (name datap)
+  "Returns the index of the foreign symbol in the linkage table or NIL if it is
+not present."
+  (let* ((key (if datap (list name) name))
+         (info *linkage-info*)
+         (ht (car info)))
+    (with-system-mutex ((hash-table-lock ht))
+      (gethash key ht))))
+
+(defun linkage-table-address (name datap)
+  "Returns the address of the foreign symbol's entry in the linkage table or NIL
+if it is not present."
+  (awhen (linkage-table-index name datap)
+    (sb-vm::linkage-table-entry-address it)))
+
+(defun find-linkage-table-foreign-symbol-address (name)
+  "Returns the address of the foreign symbol NAME, or NIL. Consults only the
+linkage table to find the address."
+  (multiple-value-bind (index datap)
+      (or (linkage-table-index name nil)
+          (values (linkage-table-index name t) t))
+    (when (and index
+               (not (member (if datap (list name) name) (cdr *linkage-info*) :test #'equal)))
+      (sap-int (alien-sap (arch-read-linkage-table-entry index (if datap 1 0)))))))
