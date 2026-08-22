@@ -30,6 +30,19 @@ if [ -n "$SBCL_HOST_LOCATION" ]; then
     rsync -a "$SBCL_HOST_LOCATION/output/" output/
 fi
 
+# Build the runtime system.
+#
+# (This C build has to come after the first genesis in order to get
+# 'sbcl.h' which the C build. It's done here, rather than in
+# make-target-1.sh, because in a --with-sb-prelink-linkage-table build the
+# second genesis (make-host-2) writes src/runtime/linkage-table-prelink-info.c,
+# which the build compiles into the runtime, so the build must come after
+# make-host-2.)
+echo //building runtime system and symbol table file
+
+$GNUMAKE -C src/runtime clean
+$GNUMAKE $SBCL_MAKE_JOBS -C src/runtime all
+
 # Do warm init stuff, e.g. building and loading CLOS, and stuff which
 # can't be done until CLOS is running.
 #
@@ -69,9 +82,52 @@ echo //doing warm init - load and dump phase
 (setq sb-c::*name-context-file-path-selector* 'truename)
 ; Turn off IR consistency checking in release mode.
 (setq sb-c::*check-consistency* nil)
+;; In a --with-sb-prelink-linkage-table build the prelink table was written
+;; during the second genesis, i.e. before this warm init, so it only covers the
+;; cold core's foreign symbols. The warm core has more (those loaded during
+;; warm init), and the runtime links the warm core against the prelink table by
+;; linkage index, so it needs an entry for every one of them. Dump the full
+;; linkage table here, just before the core is saved, so it matches the core.
+;;
+;; A --with-sb-prelink-linkage-table build is recognized by the presence of
+;; src/runtime/linkage-table-prelink-info.c, which the second genesis wrote
+;; just before this warm init. (:sb-prelink-linkage-table itself is a
+;; cross-compile-only feature and is not present in the loaded core's
+;; *FEATURES*, so it cannot be tested here.)
+;; Load the dump helper unconditionally (it is present in every build that
+;; carries this series and has no side effects) so the SB-DUMP-LINKAGE-INFO
+;; package exists before the reader reaches the qualified symbol below; the
+;; reader resolves that symbol when it reads the next form, which happens only
+;; after this load has been evaluated. The dump itself runs only in a
+;; --with-sb-prelink-linkage-table build, recognized by the prelink file the
+;; second genesis wrote just before this warm init.
+(format t "DEBUG2PASS: src=~S listing=~{~A~^ ~}~%" (probe-file "src/runtime/linkage-table-prelink-info.c") (directory "src/runtime/linkage*"))
+(load "tools-for-build/dump-linkage-info.lisp")
+(when (probe-file "src/runtime/linkage-table-prelink-info.c")
+  (sb-dump-linkage-info:dump-to-file "output/linkage-table-full.sexp"))
 (let ((sb-ext:*invoke-debugger-hook* (prog1 sb-ext:*invoke-debugger-hook* (sb-ext:enable-debugger))))
  (sb-ext:save-lisp-and-die "output/sbcl.core"))
 EOF
+
+# Finish the prelink table (see the dump above). Regenerate it from the full
+# linkage table that was just dumped, and rebuild the runtime so the final
+# system prelinks the warm core's foreign symbols as well as the cold core's.
+# The dump file only exists in a --with-sb-prelink-linkage-table build.
+# The table is regenerated with the cold core, not the warm one, because the
+# current runtime's prelink table is still the cold-sized one.
+# (Alternatively this could be done manually between these two stages: dump the
+# table with tools-for-build/dump-linkage-info.lisp, regenerate the prelink
+# file with
+# tools-for-build/create-linkage-table-prelink-info-override.lisp, and rebuild
+# with "make -C src/runtime all".)
+if [ -f output/linkage-table-full.sexp ]; then
+    echo //regenerating prelink linkage table for the warm core
+    ./src/runtime/sbcl --core output/cold-sbcl.core \
+                       --no-sysinit --no-userinit \
+                       --script tools-for-build/create-linkage-table-prelink-info-override.lisp \
+                       output/linkage-table-full.sexp src/runtime/linkage-table-prelink-info.c
+    $GNUMAKE $SBCL_MAKE_JOBS -C src/runtime all
+fi
 
 ./src/runtime/sbcl --noinform --core output/sbcl.core \
                    --no-sysinit --no-userinit --noprint <<EOF

@@ -29,16 +29,6 @@ if [ -n "$SBCL_HOST_LOCATION" ]; then
     rsync -a "$SBCL_HOST_LOCATION/src/runtime/genesis" src/runtime
 fi
 
-# Build the runtime system
-#
-# (This C build has to come after the first genesis in order to get
-# 'sbcl.h' which the C build. It could come either before or after running
-# the cross compiler; that doesn't matter.)
-echo //building runtime system and symbol table file
-
-$GNUMAKE -C src/runtime clean
-$GNUMAKE $SBCL_MAKE_JOBS -C src/runtime all
-
 # Use a little C program to grab stuff from the C header files and
 # smash it into Lisp source code.
 # -C tools-for-build is broken on some gnu make versions.
