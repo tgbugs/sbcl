@@ -118,14 +118,19 @@ EOF
 # (Alternatively this could be done manually between these two stages: dump the
 # table with tools-for-build/dump-linkage-info.lisp, regenerate the prelink
 # file with
-# tools-for-build/create-linkage-table-prelink-info-override.lisp, and rebuild
-# with "make -C src/runtime all".)
+# tools-for-build/create-linkage-table-prelink-info-override.lisp (passing "weak" as the
+# third argument so the definitions are weak and a strong override object can
+# shadow them), and rebuild with "make -C src/runtime all".)
+#
+# The "weak" argument below is essential: the generated file becomes part of
+# sbcl.o, and in the README approach-one static link the override object must
+# win over it for both alien_linkage_values and alien_linkage_table_n_warm.
 if [ -f output/linkage-table-full.sexp ]; then
     echo //regenerating prelink linkage table for the warm core
     ./src/runtime/sbcl --core output/cold-sbcl.core \
                        --no-sysinit --no-userinit \
                        --script tools-for-build/create-linkage-table-prelink-info-override.lisp \
-                       output/linkage-table-full.sexp src/runtime/linkage-table-prelink-info.c
+                       output/linkage-table-full.sexp src/runtime/linkage-table-prelink-info.c weak
     $GNUMAKE $SBCL_MAKE_JOBS -C src/runtime all
 fi
 
