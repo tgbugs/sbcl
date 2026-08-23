@@ -2457,6 +2457,24 @@ Legal values for OFFSET are -4, -8, -12, ..."
                               sorted-pairs)
                       :test #'equal))
 
+      ;; Record the number of entries so os_link_runtime knows how many of the
+      ;; loaded core's linkage-info entries are backed by this table.  A saved
+      ;; core may have more (runtime-loaded symbols appended at the end); the
+      ;; runtime resolves those by name instead of reading past the array.
+      ;;
+      ;; The definition is WEAK, like the table below, so that the override
+      ;; object (tools-for-build/create-linkage-table-prelink-info-override.lisp,
+      ;; deliberately strong for both symbols) can shadow this pair when it is
+      ;; linked into a static executable (README, approach one, step 5).  A
+      ;; strong definition here would be a multiple-definition link error
+      ;; against the installed prelink-built runtime (sbcl.o), and two weak
+      ;; definitions would leave the linker to pick the build-time table.
+      ;; In the regular runtime this is the only definition, so the weak
+      ;; value is used.
+      #-win32
+      (format output "__attribute__((weak)) unsigned alien_linkage_table_n_warm = ~D;~%" (length sorted-pairs))
+      #+win32
+      (format output "unsigned alien_linkage_table_n_warm = ~D;~%" (length sorted-pairs))
       #-win32
       (format output "uintptr_t __attribute__((weak)) alien_linkage_values[] = {~%")
       #+win32

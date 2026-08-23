@@ -192,6 +192,21 @@ os_dlsym_default(char *name)
 #endif
 
 int alien_linkage_table_n_prelinked;
+#ifdef LISP_FEATURE_SB_PRELINK_LINKAGE_TABLE
+// Number of entries in the C prelink table (alien_linkage_values), recorded at
+// build time by the generator.  The generated object
+// (linkage-table-prelink-info.o) defines both the table and the count weakly,
+// so that a deliberately-strong override object (see
+// create-linkage-table-prelink-info-override.lisp) can shadow the pair in a
+// static executable.  The *reference* here is deliberately strong, not weak:
+// in a custom ELF-core executable the generated object lives in libsbcl.a and
+// only a strong reference makes the linker extract that member at all; if it
+// were weak, the count would silently read 0 and the walk below would
+// prelink nothing, leaving every foreign symbol unresolved.  (In the regular
+// runtime the object is linked directly, so the strength of this reference
+// does not matter there.)
+extern unsigned alien_linkage_table_n_warm;
+#endif
 extern lispobj* get_alien_linkage_table_initializer();
 void os_link_runtime(lispobj vector, lispobj count)
 {
@@ -202,9 +217,32 @@ void os_link_runtime(lispobj vector, lispobj count)
     // Table is the possibly nonexistent array of words filled in by the system linker.
     lispobj* table = get_alien_linkage_table_initializer();
     if (table) {
-        // Every entry in sb-sys:*linkage-info* is considered pre-linked
-        int n = alien_linkage_table_n_prelinked = fixnum_value(name_table->data[0]);
-        for ( ; n-- ; linkage_index++, name_index += 2, table++ ) {
+        // The C table holds exactly the entries that existed when this runtime
+        // was built (alien_linkage_table_n_warm of them).  A core saved from a
+        // running instance may have *more*: anything loaded after the build
+        // (e.g. a dlopen'd shared object, or a runtime C global touched via
+        // alien) is appended to the linkage-info at indices >= n_warm.  The
+        // build-time entries form a stable prefix (indices 0..n_warm-1, in
+        // index order -- the gc_assert below relies on that), so prelink only
+        // what the table actually contains.  The remaining entries (index >=
+        // n_warm) are left for foreign-reinit() -> update-alien-linkage-table()
+        // to resolve by name via dlsym, which runs after the saved core's
+        // shared objects have been reopened -- the right moment to find them.
+        // Without this clamp a save-lisp-and-die whose linkage count exceeds
+        // n_warm would read past the end of the table (the same out-of-bounds
+        // access that clobbered warm-only symbols like "spawn").
+        int n = fixnum_value(name_table->data[0]);
+#ifdef LISP_FEATURE_SB_PRELINK_LINKAGE_TABLE
+        // Only clamp in a prelink build: there the table may be the
+        // build-time C array, which holds exactly alien_linkage_table_n_warm
+        // entries.  In a non-prelink build the table is always the core
+        // object's own alien_linkage_values, which holds exactly n entries,
+        // so the full walk is correct (and no count exists to clamp to).
+        if (n > alien_linkage_table_n_warm)
+            n = alien_linkage_table_n_warm;
+#endif
+        alien_linkage_table_n_prelinked = n;
+        for (int i = 0; i < n; i++) {
             lispobj name = name_table->data[name_index];
             gc_assert(fixnum_value(name_table->data[1+name_index]) == linkage_index);
             bool is_data = listp(name);
@@ -212,6 +250,9 @@ void os_link_runtime(lispobj vector, lispobj count)
             // of a toolchain fully supporting arbitrary characters is low.
             gc_assert(simple_base_string_p(is_data ? CONS(name)->car : name));
             arch_write_linkage_table_entry(linkage_index, (void*)*table, is_data);
+            linkage_index++;
+            name_index += 2;
+            table++;
         }
     } else { // Process only 'count' entries by looking them up
 #ifndef LISP_FEATURE_SB_PRELINK_LINKAGE_TABLE
