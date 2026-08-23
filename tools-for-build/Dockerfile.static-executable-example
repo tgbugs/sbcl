@@ -34,6 +34,7 @@ RUN set -x \
     && apk add --no-cache gmp-dev \
     && sbcl --non-interactive \
             --eval '(require :uiop)' \
+            --eval '(load "tests/test-util.lisp")' \
             --eval '(require :sb-gmp)' \
             --eval '(require :sb-rt)' \
             --eval '(defvar *sb-gmp-tests* (uiop:read-file-string "contrib/sb-gmp/tests.lisp"))' \
@@ -60,4 +61,4 @@ RUN set -x \
     && /tmp/static-sbcl \
         --core /tmp/sb-gmp-tester.core \
         --non-interactive \
-        --eval '(sb-ext:save-lisp-and-die "/tmp/sb-gmp-tester" :executable t :toplevel (lambda () (uiop:load-from-string *sb-gmp-tests*) (sb-rt:do-tests) (exit)) :compression t)'
+        --eval '(sb-ext:save-lisp-and-die "/tmp/sb-gmp-tester" :executable t :toplevel (lambda () (let ((test-util:*elapsed-times* nil)) (uiop:load-from-string *sb-gmp-tests*) (sb-rt:do-tests)) (if test-util:*failures* (exit 1) (exit))) :compression t)'
