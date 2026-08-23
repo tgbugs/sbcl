@@ -111,7 +111,9 @@ SBCL runtime in a ingle object file) along with everything else.
 and no symbols can be filtered out of it.
 
 Here is a step-by-step procedure to build the demo static executable using this
-approach.
+approach. The demo runs the sb-gmp contrib test suite, which is written against
+SBCL's own test harness: load tests/test-util.lisp (which defines the TEST-UTIL
+package the tests import) before saving the core.
 
 Step 0:
 
@@ -123,6 +125,7 @@ Steps 1-3:
     sbcl --non-interactive \
          --no-sysinit --no-userinit \
          --eval '(require :uiop)' \
+         --eval '(load "tests/test-util.lisp")' \
          --eval '(require :sb-gmp)' \
          --eval '(require :sb-rt)' \
          --eval '(defvar *sb-gmp-tests* (uiop:read-file-string "contrib/sb-gmp/tests.lisp"))' \
@@ -152,17 +155,17 @@ Step 6:
     /tmp/static-sbcl --core /tmp/sb-gmp-tester.core \
                      --non-interactive \
                      --no-sysinit --no-userinit \
-                     --eval '(sb-ext:save-lisp-and-die "/tmp/sb-gmp-tester" :executable t :toplevel (lambda () (uiop:load-from-string *sb-gmp-tests*) (sb-rt:do-tests) (exit)) :compression t)'
+                     --eval '(sb-ext:save-lisp-and-die "/tmp/sb-gmp-tester" :executable t :toplevel (lambda () (let ((test-util:*elapsed-times* nil)) (uiop:load-from-string *sb-gmp-tests*) (sb-rt:do-tests)) (if test-util:*failures* (exit 1) (exit))) :compression t)'
 
 
 Look at the dumped executable. You should see that it is a static executable.
 
     ldd /tmp/sb-gmp-tester
 
-Test that it works!
+Test that it works! The executable exits 0 if all tests pass, 1 otherwise.
 
     /tmp/sb-gmp-tester
-    
+
 BUILDING A STATIC EXECUTABLE - APPROACH TWO
 
 This approach results in an executable that is not linked with libdl at
@@ -198,6 +201,7 @@ Steps 1-2:
     sh run-sbcl.sh --non-interactive \
                    --no-sysinit --no-userinit \
                    --eval '(require :uiop)' \
+                   --eval '(load "tests/test-util.lisp")' \
                    --eval '(require :sb-gmp)' \
                    --eval '(require :sb-rt)' \
                    --eval '(defvar *sb-gmp-tests* (uiop:read-file-string "contrib/sb-gmp/tests.lisp"))' \
@@ -213,16 +217,17 @@ Steps 4-5:
     sh run-sbcl.sh --non-interactive \
                    --no-sysinit --no-userinit \
                    --eval '(require :uiop)' \
+                   --eval '(load "tests/test-util.lisp")' \
                    --eval '(require :sb-gmp)' \
                    --eval '(require :sb-rt)' \
                    --eval '(defvar *sb-gmp-tests* (uiop:read-file-string "contrib/sb-gmp/tests.lisp"))' \
-                   --eval '(sb-ext:save-lisp-and-die "/tmp/sb-gmp-tester" :executable t :toplevel (lambda () (uiop:load-from-string *sb-gmp-tests*) (sb-rt:do-tests) (exit)) :compression t)'
+                   --eval '(sb-ext:save-lisp-and-die "/tmp/sb-gmp-tester" :executable t :toplevel (lambda () (let ((test-util:*elapsed-times* nil)) (uiop:load-from-string *sb-gmp-tests*) (sb-rt:do-tests)) (if test-util:*failures* (exit 1) (exit))) :compression t)'
 
 Look at the dumped executable. You should see that it is a static executable.
 
     ldd /tmp/sb-gmp-tester
 
-Test that it works!
+Test that it works! The executable exits 0 if all tests pass, 1 otherwise.
 
     /tmp/sb-gmp-tester
 

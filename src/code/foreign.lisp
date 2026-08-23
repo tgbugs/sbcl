@@ -164,9 +164,15 @@ linkage table to find the address."
   "Returns the address of the foreign symbol NAME, or NIL. Does not enter the
 symbol in the linkage table, and never returns an address in the linkage-table."
   (or
+   ;; Consult the linkage table first: in a prelink build the table is the
+   ;; authoritative source of symbol addresses, and in a fully static
+   ;; executable dlopen/dlsym are unavailable at all, so a dlsym-first order
+   ;; would hard-error instead of finding prelinked symbols.  On non-prelink
+   ;; dlopen platforms the table is merely a cache of the same dlsym results,
+   ;; so preferring it changes nothing.
+   (find-linkage-table-foreign-symbol-address name)
    #+os-provides-dlopen
-   (find-dynamic-foreign-symbol-address name)
-   (find-linkage-table-foreign-symbol-address name)))
+   (find-dynamic-foreign-symbol-address name)))
 
 ;;; Note that much conditionalization is for nothing at this point, because all
 ;;; platforms that we care about implement dlopen(). But if one did not, only
