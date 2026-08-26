@@ -166,6 +166,32 @@ Test that it works! The executable exits 0 if all tests pass, 1 otherwise.
 
     /tmp/sb-gmp-tester
 
+TESTING THE FLOW WITHOUT EXTERNAL DEPENDENCIES
+
+contrib/sb-tiny is a tiny alien library (two foreign functions and one
+foreign variable, no dependencies beyond libc) included only to exercise
+the static executable flow without requiring libgmp or any other foreign
+static library. The script contrib/sb-tiny/test-static.sh drives approach
+one end to end using it: it builds libsb-tiny.a, saves a core that
+references the library, dumps the linkage info, generates the override,
+statically links the runtime against libsb-tiny.a, and runs the resulting
+static executable, which exits 0 iff all three foreign symbols resolved
+and returned the expected values. (The dynamic SBCL that saves the core
+must be able to resolve the tiny_* symbols so that they are marked
+defined in the dumped linkage info -- the override then emits &tiny_*
+and the static link resolves them from the library, the way the gmp
+demo relies on libgmp being resolvable. The script builds libsb-tiny.so
+and LD_PRELOADs it for that step; the final static executable links the
+static library, not the .so.)
+
+The SBCL used to save the core and the runtime that is statically linked
+must come from the same build as step 0 above (built with
+--with-sb-linkable-runtime and --with-sb-prelink-linkage-table). By
+default the script uses the installed SBCL and the installed runtime in
+/usr/lib/sbcl; see the script header for the SBCL, SBCL_LIBDIR and
+SBCL_TOP overrides (for an uninstalled build tree, for example:
+SBCL="./src/runtime/sbcl --core output/sbcl.core" SBCL_LIBDIR=src/runtime).
+
 BUILDING A STATIC EXECUTABLE - APPROACH TWO
 
 This approach results in an executable that is not linked with libdl at
